@@ -15,5 +15,7 @@ TO DO
 =====
 
 Add Timers to run hourly
+
 Finish exception handling
---in the event of a failure, retry in x minutes
+
+  -in the event of a failure, retry in x minutes
