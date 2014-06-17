@@ -77,7 +77,6 @@ namespace PlatformStats
                 {
                     url = line.Substring(line.IndexOf("=") + 1);
                 }
-
             }
 
             client = new WebClient();
@@ -98,7 +97,6 @@ namespace PlatformStats
                 MessageBox.Show(ex.Message);
                 return false;
             }
-
         }
 
         private bool CloseConnection ()
@@ -152,7 +150,6 @@ namespace PlatformStats
                 MessageBox.Show(ex.Message);
                 return "";
             }
-
         }
 
         //Console = pc(0), ps3(1), xbox(2), xone(3), ps4(4)
@@ -194,7 +191,6 @@ namespace PlatformStats
                 return stats;
             }
             return stats;
-
         }
     }
 }
