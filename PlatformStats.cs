@@ -3,14 +3,13 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 using System.Net;
-//using System.DateTime;
 //using Newtonsoft.Json;
 using System.Data;
 using MySql.Data.MySqlClient;
-using System.Windows.Forms;
+//using System.Windows.Forms;
+using System.Timers;
 
 namespace PlatformStats
 {
@@ -18,6 +17,7 @@ namespace PlatformStats
     {
         private MySqlConnection connection;
         private WebClient client;
+        private Timer aTimer;
         private string server;
         private string port;
         private string database;
@@ -25,24 +25,26 @@ namespace PlatformStats
         private string password;
         private string table;
         private string url;
+        private bool debug;
+        private int timerInterval;
+
+        private string message;
 
         public PlatformStats()
         {
             Initialize();
         }
 
-        static void Main(string[] args)
+        static void Main()
         {
-            PlatformStats web = new PlatformStats();
-            int[] stats = web.getCounts();
-            web.Insert(stats[0],stats[1],stats[2],stats[3],stats[4]);
-
-            //Console.WriteLine(getStatString(url));
-            //Console.WriteLine(getCount("pc", getStatString(url)));
-            //Console.Read();
+            PlatformStats pStats = new PlatformStats();
+            pStats.startTimer();
+            Console.WriteLine(pStats.message);
+            Console.WriteLine("Press any key to stop the program");
+            Console.ReadLine();
         }
 
-        private void Initialize()
+        private void Initialize() 
         {
             //pulls info from config file
             string[] lines = System.IO.File.ReadAllLines(@".\Config.txt");
@@ -51,50 +53,93 @@ namespace PlatformStats
             {
                 if (line.ToLower().Contains("server"))
                 {
-                    server = line.Substring(line.IndexOf("=")+1);
+                    this.server = line.Substring(line.IndexOf("=")+1);
                 }
                 else if (line.ToLower().Contains("port"))
                 {
-                    port = line.Substring(line.IndexOf("=")+1);
+                    this.port = line.Substring(line.IndexOf("=") + 1);
                 }
                 else if (line.ToLower().Contains("user"))
                 {
-                    uid = line.Substring(line.IndexOf("=")+1);
+                    this.uid = line.Substring(line.IndexOf("=") + 1);
                 }
                 else if (line.ToLower().Contains("password"))
                 {
-                    password = line.Substring(line.IndexOf("=")+1);
+                    this.password = line.Substring(line.IndexOf("=") + 1);
                 }
                 else if (line.ToLower().Contains("database"))
                 {
-                    database = line.Substring(line.IndexOf("=")+1);
+                    this.database = line.Substring(line.IndexOf("=") + 1);
                 }
                 else if (line.ToLower().Contains("table"))
                 {
-                    table = line.Substring(line.IndexOf("=")+1);
+                    this.table = line.Substring(line.IndexOf("=") + 1);
                 }
                 else if (line.ToLower().Contains("url"))
                 {
-                    url = line.Substring(line.IndexOf("=") + 1);
+                    this.url = line.Substring(line.IndexOf("=") + 1);
+                }
+                else if (line.ToLower().Contains("interval"))
+                {
+                    this.timerInterval = Convert.ToInt32(line.Substring(line.IndexOf("=") + 1));
+                }
+                else if (line.ToLower().Contains("debug"))
+                {
+                    try
+                    {
+                        this.debug = Convert.ToBoolean(line.Substring(line.IndexOf("=") + 1));
+                    }
+                    catch(FormatException e)
+                    {
+                        this.debug = false;
+                    } 
                 }
             }
 
-            client = new WebClient();
+            message = "PureLog Platform Stats v1.0";
+
+            this.client = new WebClient();
+            aTimer = new Timer();
 
             string connectionString = "SERVER=" + server + ";" + "PORT=" + port + ";" + "DATABASE=" + database + ";" + "UID=" + uid + ";" + "PWD=" + password + ";";
-            connection = new MySqlConnection(connectionString);
+            this.connection = new MySqlConnection(connectionString);
+        }
+
+        private void startTimer()
+        {
+            aTimer.Elapsed += new ElapsedEventHandler(OnTimedEvent);
+            aTimer.Interval = timerInterval;
+            aTimer.Enabled = true;
+            aTimer.Start();
+        }
+
+        private void stopTimer()
+        {
+            aTimer.Stop();
+        }
+
+        private void setInterval(int interval)
+        {
+            timerInterval = interval;
+        }
+
+        private void OnTimedEvent(object source, ElapsedEventArgs e)
+        {
+            int[] stats = this.getCounts();
+            this.Insert(stats[0], stats[1], stats[2], stats[3], stats[4]);
         }
 
         private bool OpenConnection()
         {
             try
             {
-                connection.Open();
+                this.connection.Open();
                 return true;
             }
             catch (MySqlException ex)
             {
-                MessageBox.Show(ex.Message);
+                if (debug)
+                    Console.WriteLine(ex.Message);
                 return false;
             }
         }
@@ -103,12 +148,13 @@ namespace PlatformStats
         {
             try
             {
-                connection.Close();
+                this.connection.Close();
                 return true;
             }
             catch (MySqlException ex)
             {
-                MessageBox.Show(ex.Message);
+                if (debug)
+                    Console.WriteLine(ex.Message);
                 return false;
             }
         }
@@ -117,23 +163,11 @@ namespace PlatformStats
         {
             if(this.OpenConnection() == true)
             {
-                ////Pull last ID from table
-                //int lastID = 0;
-                //string idQuery = "Select MAX(ID) AS ID FROM " + table;
-                //MySqlCommand getID = new MySqlCommand(idQuery, connection);
-                //MySqlDataReader dataReader = getID.ExecuteReader();
-                //while (dataReader.Read())
-                //    lastID = dataReader.GetInt32("ID");
-                ////insert new row with timestamp and ID
-                //string dt = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-                //string query = "Insert Into " + table + " (datetime, ID)"+
-                //    "VALUES ('"+dt+"','"+lastID+1+"')";
-
                 string dt = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
                 string query = "Insert Into " + table + " (datetime, pcPlayerCount, ps3PlayerCount, ps4PlayerCount, xboxPlayerCount, xonePlayerCount)"+
                     "VALUES ('"+dt+"','"+pc+"','"+ps3+"','"+ps4+"','"+xbox+"','"+xone+"')";
 
-                MySqlCommand cmd = new MySqlCommand(query, connection);
+                MySqlCommand cmd = new MySqlCommand(query, this.connection);
                 cmd.ExecuteNonQuery();
                 this.CloseConnection();
             }
@@ -143,11 +177,12 @@ namespace PlatformStats
         {
             try
             {
-                return client.DownloadString(url);
+                return this.client.DownloadString(this.url);
             }
             catch (WebException ex)
             {
-                MessageBox.Show(ex.Message);
+                if(debug)
+                    Console.WriteLine(ex.Message);
                 return "";
             }
         }
@@ -190,7 +225,11 @@ namespace PlatformStats
                 }
                 return stats;
             }
-            return stats;
+            else
+            {
+                stats[0] = -1;
+                return stats;
+            }
         }
     }
 }
