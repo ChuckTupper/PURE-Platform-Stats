@@ -37,11 +37,14 @@ namespace PlatformStats
 
         static void Main()
         {
+
             PlatformStats pStats = new PlatformStats();
-            pStats.startTimer();
+            pStats.writeToLog(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " PURE Platform Stats started");
+            pStats.initiateTimer();
             Console.WriteLine(pStats.message);
             Console.WriteLine("Press any key to stop the program");
             Console.ReadLine();
+            pStats.writeToLog(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " PURE Platform Stats stopped");
         }
 
         private void Initialize() 
@@ -99,33 +102,35 @@ namespace PlatformStats
             message = "PureLog Platform Stats v1.0";
 
             this.client = new WebClient();
-            aTimer = new Timer();
+            this.aTimer = new Timer();
 
             string connectionString = "SERVER=" + server + ";" + "PORT=" + port + ";" + "DATABASE=" + database + ";" + "UID=" + uid + ";" + "PWD=" + password + ";";
             this.connection = new MySqlConnection(connectionString);
         }
 
-        private void startTimer()
+        private void initiateTimer()
         {
-            aTimer.Elapsed += new ElapsedEventHandler(OnTimedEvent);
-            aTimer.Interval = timerInterval;
-            aTimer.Enabled = true;
-            aTimer.Start();
+            this.aTimer.Elapsed += new ElapsedEventHandler(OnTimedEvent);
+            this.aTimer.Interval = timerInterval;
+            this.aTimer.Enabled = true;
+            this.aTimer.Start();
         }
 
         private void stopTimer()
         {
-            aTimer.Stop();
+            this.aTimer.Stop();
         }
-
-        private void setInterval(int interval)
+        private void setInterval(int i)
         {
-            timerInterval = interval;
+            this.aTimer.Interval = i;
         }
 
         private void OnTimedEvent(object source, ElapsedEventArgs e)
         {
+            setInterval(3600000);
             int[] stats = this.getCounts();
+            if (stats[0] == -1)
+                return;
             this.Insert(stats[0], stats[1], stats[2], stats[3], stats[4]);
         }
 
@@ -140,6 +145,8 @@ namespace PlatformStats
             {
                 if (debug)
                     Console.WriteLine(ex.Message);
+                writeToLog(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " Error occured during OpenConnection(): " + ex.Message);
+                setInterval(5000);
                 return false;
             }
         }
@@ -155,6 +162,7 @@ namespace PlatformStats
             {
                 if (debug)
                     Console.WriteLine(ex.Message);
+                writeToLog(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " Error occured during CloseConnection(): " + ex.Message);
                 return false;
             }
         }
@@ -168,8 +176,22 @@ namespace PlatformStats
                     "VALUES ('"+dt+"','"+pc+"','"+ps3+"','"+ps4+"','"+xbox+"','"+xone+"')";
 
                 MySqlCommand cmd = new MySqlCommand(query, this.connection);
-                cmd.ExecuteNonQuery();
+                try
+                {
+                    cmd.ExecuteNonQuery();
+                }
+                catch (Exception ex)
+                {
+                    if (debug)
+                        Console.WriteLine(ex.Message);
+                    writeToLog(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " Error occured during Insert(): " + ex.Message);
+                    setInterval(5000);
+                }
                 this.CloseConnection();
+            }
+            else
+            {
+                setInterval(5000);
             }
         }
 
@@ -183,7 +205,17 @@ namespace PlatformStats
             {
                 if(debug)
                     Console.WriteLine(ex.Message);
+                writeToLog(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " Error occured during getStatString(): " + ex.Message);
+                setInterval(5000);
                 return "";
+            }
+        }
+
+        public void writeToLog(string s)
+        {
+            using (System.IO.StreamWriter file = new System.IO.StreamWriter(@".\Log.txt", true))
+            {
+                file.WriteLine(s);
             }
         }
 
