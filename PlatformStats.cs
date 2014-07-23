@@ -10,6 +10,7 @@ using System.Data;
 using MySql.Data.MySqlClient;
 //using System.Windows.Forms;
 using System.Timers;
+using System.IO;
 
 namespace PlatformStats
 {
@@ -28,21 +29,43 @@ namespace PlatformStats
         private bool debug;
         private int timerInterval;
 
-        private string message;
+        private static string exePath;
+        private static string configPath;
+        private static string logPath;
+        private static string message;
 
         public PlatformStats()
         {
-            Initialize();
+            exePath = Path.GetDirectoryName(System.Reflection.Assembly.GetEntryAssembly().Location);
+            configPath = Path.Combine(exePath, @"config.txt");
+            logPath = Path.Combine(exePath, @"log.txt");
+            message = "PureLog Platform Stats v1.0";
         }
 
         static void Main()
         {
-
             PlatformStats pStats = new PlatformStats();
+            Console.WriteLine(message);
+            Console.WriteLine("");
+            Console.WriteLine("Initializing config.txt from: " + exePath);
+            Console.WriteLine("Press any key to continue");
+            Console.ReadLine();
+            try
+            {
+                pStats.Initialize();
+            }
+            catch(FileNotFoundException ex)
+            {
+                Console.WriteLine("Cannot find Config File: " + ex.Message);
+                Console.WriteLine("Press any key to exit program");
+                Console.ReadLine();
+                Environment.Exit(0);
+            }
+            pStats.writeToLog(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " PURE Platform Stats started");
             pStats.writeToLog(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " PURE Platform Stats started");
             pStats.initiateTimer();
-            Console.WriteLine(pStats.message);
-            Console.WriteLine("Press any key to stop the program");
+            Console.WriteLine("Program running");
+            Console.WriteLine("Press any key to stop program");
             Console.ReadLine();
             pStats.writeToLog(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " PURE Platform Stats stopped");
         }
@@ -50,7 +73,8 @@ namespace PlatformStats
         private void Initialize() 
         {
             //pulls info from config file
-            string[] lines = System.IO.File.ReadAllLines(@".\Config.txt");
+            //string[] lines = File.ReadAllLines(@".\config.txt");
+            string[] lines = File.ReadAllLines(configPath);
 
             foreach (string line in lines)
             {
@@ -99,8 +123,6 @@ namespace PlatformStats
                 }
             }
 
-            message = "PureLog Platform Stats v1.0";
-
             this.client = new WebClient();
             this.aTimer = new Timer();
 
@@ -127,7 +149,7 @@ namespace PlatformStats
 
         private void OnTimedEvent(object source, ElapsedEventArgs e)
         {
-            setInterval(3600000);
+            setInterval(timerInterval);
             int[] stats = this.getCounts();
             if (stats[0] == -1)
                 return;
@@ -144,7 +166,7 @@ namespace PlatformStats
             catch (MySqlException ex)
             {
                 if (debug)
-                    Console.WriteLine(ex.Message);
+                    Console.WriteLine("Error opening Connection: " + ex.Message);
                 writeToLog(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " Error occured during OpenConnection(): " + ex.Message);
                 setInterval(5000);
                 return false;
@@ -161,7 +183,7 @@ namespace PlatformStats
             catch (MySqlException ex)
             {
                 if (debug)
-                    Console.WriteLine(ex.Message);
+                    Console.WriteLine("Error closing connection: " + ex.Message);
                 writeToLog(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " Error occured during CloseConnection(): " + ex.Message);
                 return false;
             }
@@ -183,7 +205,7 @@ namespace PlatformStats
                 catch (Exception ex)
                 {
                     if (debug)
-                        Console.WriteLine(ex.Message);
+                        Console.WriteLine("Error when executing SQL query: " + ex.Message);
                     writeToLog(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " Error occured during Insert(): " + ex.Message);
                     setInterval(5000);
                 }
@@ -204,7 +226,7 @@ namespace PlatformStats
             catch (WebException ex)
             {
                 if(debug)
-                    Console.WriteLine(ex.Message);
+                    Console.WriteLine("Error when retrieving stats: " + ex.Message);
                 writeToLog(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " Error occured during getStatString(): " + ex.Message);
                 setInterval(5000);
                 return "";
@@ -213,9 +235,21 @@ namespace PlatformStats
 
         public void writeToLog(string s)
         {
-            using (System.IO.StreamWriter file = new System.IO.StreamWriter(@".\Log.txt", true))
+            if (!File.Exists(logPath))
             {
-                file.WriteLine(s);
+                using (StreamWriter file = File.CreateText(logPath))
+                {
+                    file.WriteLine(s);
+                    Console.WriteLine("Log file created at: " + logPath + "\n");
+                   
+                }
+            }
+            else
+            {
+                using (StreamWriter file = new System.IO.StreamWriter(logPath, true))
+                {
+                    file.WriteLine(s);
+                }
             }
         }
 
