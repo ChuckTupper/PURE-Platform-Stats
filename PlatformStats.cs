@@ -39,31 +39,42 @@ namespace PlatformStats
             exePath = Path.GetDirectoryName(System.Reflection.Assembly.GetEntryAssembly().Location);
             configPath = Path.Combine(exePath, @"config.txt");
             logPath = Path.Combine(exePath, @"log.txt");
-            message = "PureLog Platform Stats v1.0";
+            message = "PureLog Platform Stats v1.1";
         }
 
         static void Main()
         {
             PlatformStats pStats = new PlatformStats();
-            Console.WriteLine(message);
-            Console.WriteLine("");
-            Console.WriteLine("Initializing config.txt from: " + exePath);
-            Console.WriteLine("Press any key to continue");
-            Console.ReadLine();
+            Console.WriteLine(message + "\n");
             try
             {
                 pStats.Initialize();
             }
             catch(FileNotFoundException ex)
             {
-                Console.WriteLine("Cannot find Config File: " + ex.Message);
+                Console.WriteLine(ex.Message);
                 Console.WriteLine("Press any key to exit program");
                 Console.ReadLine();
                 Environment.Exit(0);
             }
-            pStats.writeToLog(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " PURE Platform Stats started");
+
             pStats.writeToLog(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " PURE Platform Stats started");
             pStats.initiateTimer();
+
+            //Attempt to find last record date and set interval. If not successful, interval remains 1 hour. If difference is greater than 1 hour, timer is set to 5 seconds.
+            //DateTime now = new DateTime(2014, 08, 21, 15, 30, 51);
+            DateTime dt = new DateTime(1900, 1, 1);
+            DateTime latestDT = pStats.getLatestRecordDate();
+            if (latestDT != dt)
+            {
+                int interval = pStats.getInterval();
+                double dif = DateTime.Now.Subtract(latestDT).TotalMilliseconds;
+                if (dif < interval && dif > 0)
+                    pStats.setInterval(Convert.ToInt32(interval - dif));
+                else if (dif > interval)
+                    pStats.setInterval(5000);
+            }
+            
             Console.WriteLine("Program running");
             Console.WriteLine("Press any key to stop program");
             Console.ReadLine();
@@ -142,6 +153,11 @@ namespace PlatformStats
         {
             this.aTimer.Stop();
         }
+
+        private int getInterval()
+        {
+            return timerInterval;
+        }
         private void setInterval(int i)
         {
             this.aTimer.Interval = i;
@@ -188,8 +204,32 @@ namespace PlatformStats
                 return false;
             }
         }
+        private DateTime getLatestRecordDate()
+        {
+            string query = "select datetime from pure_platformstats.platformstats order by datetime desc limit 1 ";
+           // List<DateTime>[] list = new List<DateTime>[1];
+            DateTime dt = new DateTime(1900, 1, 1);
+            if(this.OpenConnection() == true)
+            {
+                MySqlCommand cmd = new MySqlCommand(query, this.connection);
+                MySqlDataReader dataReader = cmd.ExecuteReader();
 
-        public void Insert(int pc, int ps3, int xbox, int xone, int ps4)
+                while (dataReader.Read())
+                {
+                    dt = Convert.ToDateTime(dataReader["datetime"]);
+                }
+
+                dataReader.Close();
+                this.CloseConnection();
+                return dt;
+            }
+            else
+            {
+                return dt;
+            }
+        }
+
+        private void Insert(int pc, int ps3, int xbox, int xone, int ps4)
         {
             if(this.OpenConnection() == true)
             {
