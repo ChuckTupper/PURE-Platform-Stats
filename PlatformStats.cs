@@ -5,10 +5,8 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Net;
-//using Newtonsoft.Json;
 using System.Data;
 using MySql.Data.MySqlClient;
-//using System.Windows.Forms;
 using System.Timers;
 using System.IO;
 
@@ -19,13 +17,13 @@ namespace PlatformStats
         private MySqlConnection connection;
         private WebClient client;
         private Timer aTimer;
-        private string server;
-        private string port;
-        private string database;
-        private string uid;
-        private string password;
-        private string table;
-        private string url;
+        private static string server;
+        private static string port;
+        private static string database;
+        private static string uid;
+        private static string password;
+        private static string table;
+        private static string url;
         private bool debug;
         private int timerInterval;
 
@@ -91,31 +89,31 @@ namespace PlatformStats
             {
                 if (line.ToLower().Contains("server"))
                 {
-                    this.server = line.Substring(line.IndexOf("=")+1);
+                    server = line.Substring(line.IndexOf("=")+1);
                 }
                 else if (line.ToLower().Contains("port"))
                 {
-                    this.port = line.Substring(line.IndexOf("=") + 1);
+                    port = line.Substring(line.IndexOf("=") + 1);
                 }
                 else if (line.ToLower().Contains("user"))
                 {
-                    this.uid = line.Substring(line.IndexOf("=") + 1);
+                    uid = line.Substring(line.IndexOf("=") + 1);
                 }
                 else if (line.ToLower().Contains("password"))
                 {
-                    this.password = line.Substring(line.IndexOf("=") + 1);
+                    password = line.Substring(line.IndexOf("=") + 1);
                 }
                 else if (line.ToLower().Contains("database"))
                 {
-                    this.database = line.Substring(line.IndexOf("=") + 1);
+                    database = line.Substring(line.IndexOf("=") + 1);
                 }
                 else if (line.ToLower().Contains("table"))
                 {
-                    this.table = line.Substring(line.IndexOf("=") + 1);
+                    table = line.Substring(line.IndexOf("=") + 1);
                 }
                 else if (line.ToLower().Contains("url"))
                 {
-                    this.url = line.Substring(line.IndexOf("=") + 1);
+                    url = line.Substring(line.IndexOf("=") + 1);
                 }
                 else if (line.ToLower().Contains("interval"))
                 {
@@ -206,7 +204,7 @@ namespace PlatformStats
         }
         private DateTime getLatestRecordDate()
         {
-            string query = "select datetime from pure_platformstats.platformstats order by datetime desc limit 1 ";
+            string query = "select datetime from "+ database +"."+ table +" order by datetime desc limit 1 ";
            // List<DateTime>[] list = new List<DateTime>[1];
             DateTime dt = new DateTime(1900, 1, 1);
             if(this.OpenConnection() == true)
@@ -261,7 +259,7 @@ namespace PlatformStats
         {
             try
             {
-                return this.client.DownloadString(this.url);
+                return this.client.DownloadString(url);
             }
             catch (WebException ex)
             {
